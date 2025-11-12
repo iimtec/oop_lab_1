@@ -1,74 +1,123 @@
 import csv, os
+from pathlib import Path
 
-__location__ = os.path.realpath(
-    os.path.join(os.getcwd(), os.path.dirname(__file__)))
+class DataLoader:
+    """Handles loading CSV data files."""
+    
+    def __init__(self, base_path=None):
+        """Initialize the DataLoader with a base path for data files.
+        """
+        if base_path is None:
+            self.base_path = Path(__file__).parent.resolve()
+        else:
+            self.base_path = Path(base_path)
+    
+    def load_csv(self, filename):
+        """Load a CSV file and return its contents as a list of dictionaries.
+        """
+        filepath = self.base_path / filename
+        data = []
+        
+        with filepath.open() as f:
+            rows = csv.DictReader(f)
+            for row in rows:
+                data.append(dict(row))
+        
+        return data
 
-cities = []
-with open(os.path.join(__location__, 'Cities.csv')) as f:
-    rows = csv.DictReader(f)
-    for r in rows:
-        cities.append(dict(r))
+class DB:
+    """Your code here"""
 
-# Print first 5 cities only
-for city in cities[:5]:
-    print(city)
+    def __init__(self):
+        self.database = {}
 
-# Print the average temperature of all the cities
-print("The average temperature of all the cities:")
-temps = []
-for city in cities:
-    temps.append(float(city['temperature']))
-print(sum(temps)/len(temps))
+    def insert(self, table):
+        """add table to database with it's name {table_name: table}"""
+        self.database[table.table_name] = table
+
+    def search(self, table_name):
+        """Retieve a table by it's name"""
+        return self.database.get(table_name)
+
+    
+class Table:
+    def __init__(self, table_name = '', table = []):
+        self.table_name = table_name
+        self.table = table
+
+    def filter(self, condition):
+        ret = []
+        for item in self.table:
+            if condition(item):
+                ret.append(item)
+        return Table(table = ret)
+
+    def aggregate(self, aggregation_function, aggregation_key):
+        tmp = []
+        for item in self.table:
+            try:
+                tmp.append(float(item[aggregation_key]))
+            except ValueError:
+                tmp.append(item[aggregation_key])
+        return aggregation_function(tmp)
+    
+    def join(self, other_table, key):
+        ret = []
+        table = other_table.table
+        for data in self.table:
+            for data2 in table:
+                if data[key] == data2[key]:
+                    data.update(data2)
+                    break
+            ret.append(data)
+        return Table(table = ret)  
+
+    def __str__(self):
+        return self.table_name + ':' + str(self.table)
+
+loader = DataLoader()
+cities = loader.load_csv('Cities.csv')
+table1 = Table('cities', cities)
+countries = loader.load_csv('Countries.csv')
+table2 = Table('countries', countries)
+
+my_DB = DB()
+my_DB.insert(table1)
+my_DB.insert(table2)
+
+my_table1 = my_DB.search('cities')
+print("List all cities in Italy:") 
+my_table1_filtered = my_table1.filter(lambda x: x['country'] == 'Italy')
+print(my_table1_filtered)
 print()
 
-# Print the average temperature of all the cities
-print("The average temperature of all the cities:")
-temps = [float(city['temperature']) for city in cities]
-print(sum(temps)/len(temps))
+print("Average temperature for all cities in Italy:")
+print(my_table1_filtered.aggregate(lambda x: sum(x)/len(x), 'temperature'))
 print()
 
-# Print all cities in Germany
-print("All cities in Germany:")
-g_city = []
-for city in cities:
-    if city['country'] == 'Germany':
-        g_city.append(city)
-print(g_city)
+my_table2 = my_DB.search('countries')
+print("List all non-EU countries:") 
+my_table2_filtered = my_table2.filter(lambda x: x['EU'] == 'no')
+print(my_table2_filtered)
 print()
 
-# Print all cities in Spain with a temperature above 12°C
-print("All cities in Spain with temperature above 12°C:")
-s_city = []
-for city in cities:
-    if city['country'] == 'Spain' and float(city['temperature']) > 12:
-        s_city.append(city)
-print(s_city)
+print("Number of countries that have coastline:")
+print(my_table2.filter(lambda x: x['coastline'] == 'yes').aggregate(lambda x: len(x), 'coastline'))
 print()
 
-# Count the number of unique countries
-print("Number of unique countries")
-countries = []
-for city in cities:
-    if city['country'] not in countries:
-        countries.append(city['country'])
-    elif city['country'] in countries:
-        pass
-print(len(countries))
+my_table3 = my_table1.join(my_table2, 'country')
+print("First 5 entries of the joined table (cities and countries):")
+for item in my_table3.table[:5]:
+    print(item)
 print()
 
-# Print the average temperature for all the cities in Germany
-print("The average temperature of cities in Germany")
-temp = []
-for city in cities:
-    if city['country'] == 'Germany':
-        temp.append(float(city['temperature']))
-print(f"{sum(temp)/len(temp):.2f}")
+print("Cities whose temperatures are below 5.0 in non-EU countries:")
+my_table3_filtered = my_table3.filter(lambda x: x['EU'] == 'no').filter(lambda x: float(x['temperature']) < 5.0)
+print(my_table3_filtered.table)
 print()
 
-# Print the max temperature for all the cities in Italy
-print("Max temperature of the Italy")
-temp = []
-for city in cities:
-    if city['country'] == 'Italy':
-        temp.append(float(city['temperature']))
-print(max(temp))
+print("The min and max temperatures for cities in EU countries that do not have coastlines")
+my_table3_filtered = my_table3.filter(lambda x: x['EU'] == 'yes').filter(lambda x: x['coastline'] == 'no')
+print("Min temp:", my_table3_filtered.aggregate(lambda x: min(x), 'temperature'))
+print("Max temp:", my_table3_filtered.aggregate(lambda x: max(x), 'temperature'))
+print()
