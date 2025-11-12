@@ -24,7 +24,6 @@ class DataLoader:
                 data.append(dict(row))
         
         return data
-<<<<<<< HEAD
 
 class DB:
     """Your code here"""
@@ -121,7 +120,6 @@ print("The min and max temperatures for cities in EU countries that do not have 
 my_table3_filtered = my_table3.filter(lambda x: x['EU'] == 'yes').filter(lambda x: x['coastline'] == 'no')
 print("Min temp:", my_table3_filtered.aggregate(lambda x: min(x), 'temperature'))
 print("Max temp:", my_table3_filtered.aggregate(lambda x: max(x), 'temperature'))
-=======
     
 class Table:
     def __init__(self,table_name = '',table = []):
@@ -187,5 +185,4 @@ print()
 my_value = my_table1.filter(lambda x: x['country'] == 'Italy').aggregate(lambda x: max(x), 'temperature')
 print("The max temperature of all the cities in Italy:")
 print(my_value)
->>>>>>> bf323275d501848979d5413ddcd6a722245c7f1c
 print()
